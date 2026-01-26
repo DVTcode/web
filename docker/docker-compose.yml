@@ -1,0 +1,47 @@
+name: itpm
+
+services:
+  mysql:
+    image: mysql:8.0
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --explicit_defaults_for_timestamp=ON
+      - --default-time-zone=+00:00
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: ITpmdb
+      MYSQL_USER: app
+      MYSQL_PASSWORD: app
+      TZ: "Asia/Ho_Chi_Minh"
+    ports:
+      - "3310:3306"          # host:container
+    volumes:
+      - mysqldata:/var/lib/mysql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$$MYSQL_USER -p$$MYSQL_PASSWORD || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  web:
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - ../apps/web:/app           # mount mã nguồn Next.js
+    environment:
+      # KẾT NỐI TỪ CONTAINER WEB -> CONTAINER MYSQL (host = service name `mysql`, port 3306)
+      DATABASE_URL: "mysql://app:app@mysql:3306/ITpmdb"
+      NEXT_TELEMETRY_DISABLED: "1"
+    ports:
+      - "3000:3000"                # http://localhost:3000
+    command: sh -c "npm install && npm run dev"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  mysqldata: {}
