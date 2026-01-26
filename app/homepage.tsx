@@ -1,31 +1,17 @@
-// apps/web/app/page.tsx
 "use client";
 import React, { useState, useEffect } from 'react';
-import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from "next/navigation";
-import { Menu, X, ChevronRight, Play, Users, Calendar, BarChart3, Bell, GitBranch, Rocket } from 'lucide-react';
-import NotificationBell from "@/app/components/NotificationBell";
+import { ChevronRight, Users, Calendar, BarChart3, Bell, GitBranch, Rocket } from 'lucide-react';
+import Header from '@/app/components/Header';
+import Footer from '@/app/components/Footer';
 
 const ProjectHubHomepage = () => {
   const router = useRouter();
-  const { data: session, status } = useSession();
-
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [counters, setCounters] = useState({ projects: 0, companies: 0, uptime: 0 });
 
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 100);
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  useEffect(() => {
     const animateCounters = () => {
-      const duration = 2000; // 2 seconds
+      const duration = 2000;
       const steps = 60;
       const stepDuration = duration / steps;
 
@@ -73,14 +59,6 @@ const ProjectHubHomepage = () => {
     };
   }, []);
 
-  const scrollToSection = (sectionId: string) => {
-    const element = document.getElementById(sectionId);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-    }
-    setIsMobileMenuOpen(false);
-  };
-
   const features = [
     {
       icon: <BarChart3 className="w-12 h-12 text-blue-500" />,
@@ -114,132 +92,9 @@ const ProjectHubHomepage = () => {
     }
   ];
 
-  const displayName =
-    session?.user?.name ||
-    session?.user?.email?.split('@')[0] ||
-    undefined;
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-purple-800">
-      {/* Header */}
-      <header className={`fixed top-0 w-full z-50 transition-all duration-300 ${isScrolled
-        ? 'bg-white/95 backdrop-blur-md shadow-lg'
-        : 'bg-white/10 backdrop-blur-md'
-        }`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            {/* Logo */}
-            <div className="flex items-center space-x-2">
-              <Rocket className="w-8 h-8 text-white" />
-              <span className="text-2xl font-bold text-white">DVTManagement</span>
-            </div>
-
-            {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center space-x-8">
-              <button
-                onClick={() => scrollToSection('features')}
-                className="text-white hover:text-white/80 transition-colors font-medium"
-              >
-                Tính năng
-              </button>
-              <button
-                onClick={() => scrollToSection('pricing')}
-                className="text-white hover:text-white/80 transition-colors font-medium"
-              >
-                Giá cả
-              </button>
-              <button
-                onClick={() => scrollToSection('about')}
-                className="text-white hover:text-white/80 transition-colors font-medium"
-              >
-                Giới thiệu
-              </button>
-              <button
-                onClick={() => scrollToSection('contact')}
-                className="text-white hover:text-white/80 transition-colors font-medium"
-              >
-                Liên hệ
-              </button>
-            </nav>
-
-            {/* Auth Buttons */}
-            {/* Auth Buttons */}
-            <div className="hidden md:flex items-center space-x-4">
-              {status === 'loading' ? (
-                <button className="px-6 py-2 border rounded" disabled>Đang tải…</button>
-              ) : session ? (
-                <div className="flex items-center gap-3 font-bold">
-                  <span className="text-sm">Xin Chào: <b>{displayName}</b></span>
-                  <button
-                    onClick={() => signOut({ callbackUrl: '/' })}
-                    className="cursor-pointer font-bold px-4 py-2 border rounded hover:bg-white hover:text-purple-600 transition-all duration-300"
-                  >
-                    Đăng Xuất
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => router.push('/sign-in')}
-                  className="cursor-pointer px-6 py-2 text-white border-2 border-white rounded-full hover:bg-white hover:text-purple-600 transition-all duration-300"
-                >
-                  Đăng nhập
-                </button>
-              )}
-
-
-              <NotificationBell />
-            </div>
-
-            {/* Mobile Menu Button */}
-            <button
-              className="md:hidden text-white p-2"
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            >
-              {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
-          </div>
-
-          {/* Mobile Menu */}
-          {isMobileMenuOpen && (
-            <div className="md:hidden py-4 border-t border-white/20">
-              <div className="flex flex-col space-y-4">
-                <button
-                  onClick={() => scrollToSection('features')}
-                  className="cursor-pointer text-white hover:text-white/80 transition-colors text-left"
-                >
-                  Tính năng
-                </button>
-                <button
-                  onClick={() => scrollToSection('pricing')}
-                  className="cursor-pointertext-white hover:text-white/80 transition-colors text-left"
-                >
-                  Giá cả
-                </button>
-                <button
-                  onClick={() => scrollToSection('about')}
-                  className="cursor-pointertext-white hover:text-white/80 transition-colors text-left"
-                >
-                  Giới thiệu
-                </button>
-                <button
-                  onClick={() => scrollToSection('contact')}
-                  className="cursor-pointer text-white hover:text-white/80 transition-colors text-left"
-                >
-                  Liên hệ
-                </button>
-                <div className="flex flex-col space-y-2 pt-4">
-                  <button className="px-6 py-2 text-white border-2 border-white rounded-full hover:bg-white hover:text-purple-600 transition-all duration-300">
-                    Đăng nhập
-                  </button>
-                  <button className="px-6 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-full hover:from-green-600 hover:to-green-700 transition-all duration-300">
-                    Dùng thử miễn phí
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </header>
+      <Header />
 
       {/* Hero Section */}
       <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
@@ -348,58 +203,7 @@ const ProjectHubHomepage = () => {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <div>
-              <div className="flex items-center space-x-2 mb-6">
-                <Rocket className="w-8 h-8 text-blue-400" />
-                <span className="text-2xl font-bold">DVTManagement</span>
-              </div>
-              <p className="text-gray-400 leading-relaxed">
-                Nền tảng quản lý dự án CNTT hiện đại, giúp đội ngũ làm việc hiệu quả và đạt mục tiêu nhanh hơn.
-              </p>
-            </div>
-
-            <div>
-              <h3 className="text-lg font-bold text-blue-400 mb-4">Sản phẩm</h3>
-              <ul className="space-y-2">
-                <li><a href="#" className="text-gray-400 hover:text-blue-400 transition-colors">Quản lý dự án</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-blue-400 transition-colors">Theo dõi thời gian</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-blue-400 transition-colors">Báo cáo phân tích</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-blue-400 transition-colors">API tích hợp</a></li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="text-lg font-bold text-blue-400 mb-4">Hỗ trợ</h3>
-              <ul className="space-y-2">
-                <li><a href="#" className="text-gray-400 hover:text-blue-400 transition-colors">Tài liệu</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-blue-400 transition-colors">Video hướng dẫn</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-blue-400 transition-colors">Liên hệ hỗ trợ</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-blue-400 transition-colors">Cộng đồng</a></li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="text-lg font-bold text-blue-400 mb-4">Công ty</h3>
-              <ul className="space-y-2">
-                <li><a href="#" className="text-gray-400 hover:text-blue-400 transition-colors">Về chúng tôi</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-blue-400 transition-colors">Tuyển dụng</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-blue-400 transition-colors">Blog</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-blue-400 transition-colors">Chính sách bảo mật</a></li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="border-t border-gray-800 mt-12 pt-8 text-center">
-            <p className="text-gray-400">
-              &copy; 2025 DVTManagement. Tất cả quyền được bảo lưu.
-            </p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 };
