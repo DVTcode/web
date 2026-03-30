@@ -1,28 +1,47 @@
 // apps/web/app/(auth)/sign-in/page.tsx
 'use client';
+// Thông báo cho Next.js rằng component này chạy trên client (cần để dùng hook và trạng thái)
 import React, { useState } from 'react';
+// Hooks điều hướng và đọc query params trên client
 import { useRouter, useSearchParams } from "next/navigation";
+// Hàm signIn từ NextAuth để khởi tạo flow xác thực (credentials hoặc OAuth)
 import { signIn } from "next-auth/react";
+// Icons từ lucide-react để hiển thị biểu tượng UI
 import { Eye, EyeOff, Rocket, ArrowLeft, Mail, Lock, Github, Chrome, Loader2 } from 'lucide-react';
 
 const LoginPage = () => {
+  // State cục bộ của component:
+  // - `formData`: chứa giá trị các field của form
+  // - `showPassword`: bật/tắt hiển thị mật khẩu
+  // - `isLoading`: trạng thái chờ khi gửi yêu cầu xác thực
+  // - `errors`: lưu lỗi xác thực/validate để hiển thị cho người dùng
   const [formData, setFormData] = useState({ email: "", password: "", rememberMe: false });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
+  // Hooks điều hướng của Next.js (chỉ dùng trên client)
   const router = useRouter();
+  // Dùng để đọc query string hiện tại (ví dụ callbackUrl khi được redirect tới trang đăng nhập)
   const sp = useSearchParams();
   const rawCb = sp.get("callbackUrl");
-  // Chỉ chấp nhận internal path, mặc định /after-login
+  // Bảo vệ: chỉ chấp nhận callback nội bộ (bắt đầu bằng '/'), tránh open redirect
+  // Nếu không có hoặc không hợp lệ, chuyển về đường dẫn mặc định '/after-login'
   const callbackUrl = rawCb && rawCb.startsWith("/") ? rawCb : "/after-login";
 
+  // Xử lý chung cho mọi input trong form (text, email, checkbox)
+  // - Lấy `name` field để cập nhật đúng thuộc tính trong `formData`
+  // - Checkbox dùng `checked`, các input khác dùng `value`
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
 
-    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
+    // Khi người dùng sửa field, nếu trước đó có lỗi liên quan tới field đó thì xóa lỗi
+    if (errors[name]) setErrors((prev) => ({ ...prev, [ name]: "" }));
   };
 
+  // Kiểm tra dữ liệu phía client trước khi gửi lên server / NextAuth
+  // Trả về `true` nếu hợp lệ, ngược lại lưu lỗi vào `errors` và trả về `false`
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
     if (!formData.email) newErrors.email = "Vui lòng nhập email";
@@ -35,7 +54,10 @@ const LoginPage = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  // ĐĂNG NHẬP bằng Credentials
+  // Xử lý submit form khi người dùng đăng nhập bằng credentials (email + mật khẩu)
+  // - Gọi `validateForm()` trước để đảm bảo dữ liệu hợp lệ
+  // - Dùng `signIn('credentials', { redirect: false })` để NextAuth trả về kết quả
+  //   rồi xử lý điều hướng thủ công qua `router.push` (giúp giữ control trên client)
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!validateForm()) return;
@@ -49,24 +71,31 @@ const LoginPage = () => {
         callbackUrl,
       });
 
+      // Nếu NextAuth trả về lỗi hoặc không có response, hiển thị lỗi chung
       if (!res || res.error) {
         setErrors((prev) => ({ ...prev, password: "Sai email hoặc mật khẩu" }));
         return;
       }
+
+      // Nếu đăng nhập thành công, điều hướng tới `res.url` hoặc `callbackUrl`
       router.push(res.url || callbackUrl);
     } catch (err) {
+      // Bắt lỗi không mong muốn (mạng, exception...) và hiển thị thông báo chung
       setErrors((prev) => ({ ...prev, password: "Có lỗi xảy ra. Vui lòng thử lại." }));
     } finally {
       setIsLoading(false);
     }
   };
 
-  // ĐĂNG NHẬP OAuth
+  // ĐĂNG NHẬP bằng OAuth (Google, GitHub...)
+  // - Với OAuth, chỉ gọi `signIn(provider)` và NextAuth sẽ redirect sang provider
+  // - `callbackUrl` được truyền để provider biết nơi cần trả về sau khi xác thực
   const handleSocialLogin = (provider: "google" | "github") => {
     setIsLoading(true);
-    // Với OAuth nên để redirect = true để NextAuth tự chuyển trang
+    // Cho NextAuth/Provider tự điều hướng (redirect) sau khi xác thực
     signIn(provider, { callbackUrl });
   };
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-purple-800 flex items-center justify-center p-4">
       <div className="absolute inset-0 overflow-hidden">
@@ -96,7 +125,7 @@ const LoginPage = () => {
             <p className="text-white/70">Đăng nhập để tiếp tục quản lý dự án của bạn</p>
           </div>
 
-          {/* Social Login */}
+          {/* Đăng nhập xã hội: nút này kích hoạt flow OAuth hoặc email-based */}
           <div className="space-y-3 mb-6">
             <button
               onClick={() => handleSocialLogin("google")}
@@ -109,7 +138,7 @@ const LoginPage = () => {
 
           </div>
 
-          {/* Divider */}
+          {/* Phần chia cách giữa nhóm nút social login và form đăng nhập bằng credentials */}
           <div className="relative flex items-center justify-center my-6">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-white/20"></div>
@@ -119,7 +148,7 @@ const LoginPage = () => {
             </div>
           </div>
 
-          {/* Login Form (submit để Enter hoạt động) */}
+          {/* Form đăng nhập chính (nhấn Enter sẽ submit form) */}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label className="block text-white/80 text-sm font-medium mb-2">Email</label>
@@ -136,6 +165,7 @@ const LoginPage = () => {
                   autoComplete="email"
                 />
               </div>
+              {/* Hiển thị lỗi xác thực riêng cho field email nếu có */}
               {errors.email && <p className="mt-2 text-red-300 text-sm">{errors.email}</p>}
             </div>
 
@@ -161,6 +191,7 @@ const LoginPage = () => {
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
+              {/* Hiển thị lỗi xác thực riêng cho field mật khẩu hoặc lỗi server chung */}
               {errors.password && <p className="mt-2 text-red-300 text-sm">{errors.password}</p>}
             </div>
 
@@ -180,6 +211,7 @@ const LoginPage = () => {
               </button>
             </div>
 
+            {/* Nút submit: hiển thị spinner khi đang gửi yêu cầu đăng nhập */}
             <button
               type="submit"
               disabled={isLoading}

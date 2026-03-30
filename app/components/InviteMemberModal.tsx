@@ -2,6 +2,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 type Role = 'MANAGER' | 'LEAD' | 'MEMBER' | 'REVIEWER' | 'VIEWER';
 type ProjectOption = { id: string; name: string; key?: string };
@@ -105,10 +106,13 @@ export default function InviteMemberModal({
         const j = await res.json().catch(() => ({}));
         throw new Error(j.error || `HTTP ${res.status}`);
       }
+      toast.success('Đã gửi lời mời thành công');
       onInvited?.();
       onClose();
     } catch (e: any) {
-      setErr(e.message || 'Mời thất bại');
+      const errorMsg = e.message || 'Mời thất bại';
+      setErr(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setSubmitting(false);
     }

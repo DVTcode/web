@@ -19,22 +19,27 @@ const ROLE_RANK: Record<ProjectRole, number> = {
 
 // Cho phép gọi với 1 hoặc nhiều role, tự hiểu là “ngưỡng tối thiểu”
 // VD: allowed = ['MEMBER'] thì LEAD/MANAGER cũng được chấp nhận
-function expandAllowed(allowed: ProjectRole[]): ProjectRole[] {
+export function expandAllowed(allowed: ProjectRole[]): ProjectRole[] {
   const min = Math.min(...allowed.map(r => ROLE_RANK[r]));
   return (Object.keys(ROLE_RANK) as ProjectRole[]).filter(r => ROLE_RANK[r] >= min);
 }
 
+// Cốt lõi của Hệ Thống Phân Quyền Bảo Mật (Authorization)
 export async function requireUser() {
+  // Lấy session từ Next.js Server
   const session = await getServerSession(authOptions);
+  // Nếu không đăng nhập => throw 401 chặn luồng ngay lập tức
   if (!session?.user?.id) throw Object.assign(new Error('UNAUTHENTICATED'), { status: 401 });
   return session.user as any; // { id, email, globalRole? }
 }
 
+// Bắt buộc User gọi API này phải thỏa mãn 1 trong các Vai Trò Hệ Thống được truyền vào mảng `roles`
 export async function requireSystemRole(roles: Array<SystemRole>) {
-  const user = await requireUser();
+  const user = await requireUser(); // Cổng lọc 1: Phải có Session
 
   let globalRole: SystemRole | undefined = (user as any).globalRole;
   if (!globalRole) {
+    // Nếu Client Token không có sẵn role => Call DB lấy mới nhất
     const dbu = await prisma.user.findUnique({
       where: { id: user.id },
       select: { globalRole: true },
@@ -42,6 +47,7 @@ export async function requireSystemRole(roles: Array<SystemRole>) {
     globalRole = (dbu?.globalRole ?? 'STANDARD') as SystemRole;
   }
 
+  // Cổng lọc 2: Trùng khớp role
   if (!roles.includes(globalRole)) {
     throw Object.assign(new Error('FORBIDDEN'), { status: 403 });
   }
@@ -126,17 +132,19 @@ export async function requireProjectRole(
   return { user: { ...user, globalRole }, membershipRole: member.role as ProjectRole, globalRole };
 }
 
-// Cho phép SYS_ADMIN bypass như trên
+// Chặn API bảo mật dựa theo Quyền Hành trong riêng tư Dự án + hoặc bypass nếu là Quản trị viên
+// Cho phép SYS_ADMIN bypass mọi rào cản Project Level
 export async function requireProjectRoleOrSystem(
   projectId: string,
   allowed: ProjectRole[] | ProjectRole = ['MANAGER', 'LEAD', 'MEMBER', 'REVIEWER', 'VIEWER']
 ) {
   const allow = Array.isArray(allowed) ? allowed : [allowed];
+  // Convert mảng ví dụ: "MEMBER" trở thành ["MANAGER", "LEAD", "MEMBER"] tự động
   const expandedAllow = expandAllowed(allow);
 
   const user = await requireUser();
 
-  // Global role
+  // Kiểm tra Global role
   let globalRole: SystemRole | undefined = (user as any).globalRole;
   if (!globalRole) {
     const dbu = await prisma.user.findUnique({
@@ -146,16 +154,18 @@ export async function requireProjectRoleOrSystem(
     globalRole = (dbu?.globalRole ?? 'STANDARD') as SystemRole;
   }
 
+  // Nếu là SYS_ADMIN => Bypass trả về user (Coi như là MANAGER của Project)
   if (globalRole === 'SYS_ADMIN') {
     return { user, membershipRole: 'MANAGER' as ProjectRole, globalRole };
   }
 
-  // Kiểm tra membership như thường
+  // Kiểm tra thư mục dự án xem User bình thường này có vai trò ở đây không
   const member = await prisma.projectMember.findFirst({
     where: { projectId, userId: (user as any).id },
     select: { role: true },
   });
 
+  // Chặn 403 nếu cố tình hack GET API của project không có quyền truy cập
   if (!member || !expandedAllow.includes(member.role as ProjectRole)) {
     throw Object.assign(new Error('FORBIDDEN'), { status: 403 });
   }

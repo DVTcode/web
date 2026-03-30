@@ -1,7 +1,7 @@
 // apps/web/app/api/projects/[projectId]/route.ts
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireProjectRole, requireUser, getCurrentUser } from '@/lib/authz';
+import { requireProjectRole, requireUser } from '@/lib/authz';
 import { isSysAdmin } from '@/lib/rbac';
 import { z } from 'zod';
 import { logProjectActivity } from "@/lib/activity-log";
@@ -46,10 +46,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
     const { projectId } = await ctx.params;
     await requireProjectRole(projectId, "MANAGER");
 
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
-    }
+    const user = await requireUser();
 
     const data = UpdateProject.parse(await req.json());
 
