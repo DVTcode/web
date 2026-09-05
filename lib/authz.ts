@@ -30,6 +30,13 @@ export async function requireUser() {
   return session.user as any; // { id, email, globalRole? }
 }
 
+// Lấy user hiện tại (không throw), trả về null nếu chưa đăng nhập
+// Dùng khi cần check optional authentication
+export async function getCurrentUser() {
+  const session = await getServerSession(authOptions);
+  return (session?.user as any) ?? null;
+}
+
 export async function requireSystemRole(roles: Array<SystemRole>) {
   const user = await requireUser();
 
