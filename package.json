@@ -25,7 +25,7 @@
     "bcryptjs": "^3.0.2",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.540.0",
-    "next": "15.4.6",
+    "next": "15.5.25",
     "next-auth": "^4.24.11",
     "react": "19.1.0",
     "react-dom": "19.1.0",
@@ -41,7 +41,7 @@
     "@types/react-dom": "^19",
     "cypress": "^15.9.0",
     "eslint": "^9",
-    "eslint-config-next": "15.4.6",
+    "eslint-config-next": "15.5.25",
     "prisma": "^6.14.0",
     "tailwindcss": "^4",
     "typescript": "^5"
