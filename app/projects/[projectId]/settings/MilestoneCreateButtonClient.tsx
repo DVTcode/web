@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import MilestoneCreateModal from "../milestones/MilestoneCreateButton"; // file modal hiện có
+import MilestoneCreateModal from "@/app/components/MilestoneCreateModal";
 
 export default function MilestoneCreateButtonClient({ projectId }: { projectId: string }) {
   const [open, setOpen] = useState(false);

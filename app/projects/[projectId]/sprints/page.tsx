@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation';
 import SprintCreateButton from './SprintCreateButton';
 import SprintActions from '@/app/components/SprintActions';
 
-type Props = { params: { projectId: string } };
+type Props = { params: Promise<{ projectId: string }> };
 
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";

@@ -38,7 +38,7 @@ export async function GET(req: Request, ctx: Ctx) {
         })
     ]);
 
-    const isLead = membership?.role === 'OWNER' || membership?.role === 'LEAD' || membership?.role === 'MANAGER';
+    const isLead = membership?.role === 'LEAD' || membership?.role === 'MANAGER';
     const isAssigned = !!taskAssignee;
 
     if (!isLead && !isAssigned) {
@@ -105,7 +105,7 @@ export async function POST(req: Request, ctx: Ctx) {
         })
     ]);
 
-    const isLead = membership?.role === 'OWNER' || membership?.role === 'LEAD' || membership?.role === 'MANAGER';
+    const isLead = membership?.role === 'LEAD' || membership?.role === 'MANAGER';
     const isAssigned = !!taskAssignee;
 
     if (!isLead && !isAssigned) {

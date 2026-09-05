@@ -37,7 +37,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ project
       startDate: data.startDate,
       endDate: data.endDate,
       status: data.status ?? "PLANNED",
-      createdById: me.id,
+      createdById: (me as any).user?.id ?? (me as any).id,
     },
   });
   return NextResponse.json(s, { status: 201 });

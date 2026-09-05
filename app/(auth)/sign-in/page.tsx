@@ -1,9 +1,9 @@
 // apps/web/app/(auth)/sign-in/page.tsx
 'use client';
-import React, { useState } from 'react';
+import React, { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { Eye, EyeOff, Rocket, ArrowLeft, Mail, Lock, Github, Chrome, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Rocket, ArrowLeft, Mail, Lock, Chrome, Loader2 } from 'lucide-react';
 
 const LoginPage = () => {
   const [formData, setFormData] = useState({ email: "", password: "", rememberMe: false });
@@ -223,4 +223,20 @@ const LoginPage = () => {
   );
 };
 
-export default LoginPage;
+// Wrap LoginPage trong Suspense vì dùng useSearchParams()
+// Bắt buộc cho Next 15 static generation
+function LoginPageFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900">
+      <Loader2 className="w-12 h-12 text-white animate-spin" />
+    </div>
+  );
+}
+
+export default function LoginPageWrapper() {
+  return (
+    <Suspense fallback={<LoginPageFallback />}>
+      <LoginPage />
+    </Suspense>
+  );
+}

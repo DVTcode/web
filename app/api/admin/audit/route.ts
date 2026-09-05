@@ -6,7 +6,7 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const from = searchParams.get('from');
   const to   = searchParams.get('to');
-  const q    = (searchParams.get('q') ?? '').trim();
+  const q = (searchParams.get('q') ?? '').trim().toLowerCase();
 
   const where: any = {};
   if (from || to) {
@@ -16,8 +16,8 @@ export async function GET(req: Request) {
   }
   if (q) {
     where.OR = [
-      { action: { contains: q, mode: 'insensitive' } },
-      { entityType: { contains: q, mode: 'insensitive' } },
+      { action: { contains: q } },
+      { entityType: { contains: q } },
     ];
   }
 

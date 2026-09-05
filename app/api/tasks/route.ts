@@ -37,14 +37,15 @@ export async function GET(req: Request) {
     ? parsed.projectId
     : undefined;
 
+  const q = parsed.q?.toLowerCase(); // Lowercase để tận dụng MySQL collation
   const where: any = {
     projectId: projectFilter ? projectFilter : { in: myProjectIds },
     ...(parsed.status ? { status: parsed.status } : {}),
-    ...(parsed.q
+    ...(q
       ? {
         OR: [
-          { title: { contains: parsed.q, mode: "insensitive" } },
-          { description: { contains: parsed.q, mode: "insensitive" } },
+          { title: { contains: q } },
+          { description: { contains: q } },
         ],
       }
       : {}),

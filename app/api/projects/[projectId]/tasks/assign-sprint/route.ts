@@ -9,8 +9,11 @@ const Schema = z.object({
   sprintId: z.string().nullable(), // null = trả task về Backlog
 });
 
-export async function PATCH(req: Request, { params }: { params: { projectId: string } }) {
-  await requireProjectRole(params.projectId, 'MEMBER');
+type Ctx = { params: Promise<{ projectId: string }> };
+
+export async function PATCH(req: Request, ctx: Ctx) {
+  const { projectId } = await ctx.params;
+  await requireProjectRole(projectId, 'MEMBER');
   const { taskId, sprintId } = Schema.parse(await req.json());
 
   const task = await prisma.task.update({

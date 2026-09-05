@@ -479,7 +479,7 @@ export default function ProjectTasksPage() {
                               if (t.status !== 'REVIEW') return null;
 
                               // 2. Check Permission: Manager OR Assignee OR Follower
-                              const isManager = myRole === 'MANAGER' || myRole === 'LEAD' || myRole === 'OWNER';
+                              const isManager = myRole === 'MANAGER' || myRole === 'LEAD';
                               const isAssignee = t.assignees?.some(a => a.user.id === session?.user?.id);
                               const isFollower = t.follower?.id === session?.user?.id;
 

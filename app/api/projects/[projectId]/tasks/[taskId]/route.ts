@@ -20,6 +20,14 @@ const UpdateTask = z.object({
   sprintId: z.string().nullable().optional(),
 });
 
+// Helper: lấy userId từ requireProjectRole (trả về { user, membershipRole, globalRole })
+function getUserId(me: { user: any; membershipRole: string; globalRole: string }): string {
+  return (me as any).user?.id ?? (me as any).id;
+}
+function getUserName(me: { user: any; membershipRole: string; globalRole: string }): string {
+  return (me as any).user?.name ?? (me as any).user?.email ?? '';
+}
+
 // GET
 export async function GET(
   _req: Request,
@@ -59,16 +67,17 @@ export async function PATCH(
     });
     if (!t0) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-    // chỉ LEAD trở lên được giao việc/sửa phân công — lấy actor (me) để log
     const me = await requireProjectRole(t0.projectId, 'LEAD');
+    const meId = getUserId(me);
+    const meName = getUserName(me);
 
-    // lấy snapshot "before" để ghi vào meta
+    // lấy snapshot "before"
     const before = await prisma.task.findUnique({
       where: { id: taskId },
       include: {
         assignees: { select: { userId: true } },
-        createdBy: { select: { id: true } } // Ensure we get creator ID
-      }
+        createdBy: { select: { id: true } },
+      },
     });
 
     if (!before) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -77,12 +86,9 @@ export async function PATCH(
 
     // Xử lý logic tự động chuyển status sang IN_PROGRESS
     let autoStatus: string | undefined = undefined;
-
-    // Chỉ xử lý nếu user KHÔNG gửi status lên và status hiện tại là TODO
     if (data.status === undefined && before.status === 'TODO') {
       const nextFollower = data.followerId !== undefined ? data.followerId : before.followerId;
       const nextAssigneeCount = data.assigneeIds !== undefined ? data.assigneeIds.length : before.assignees.length;
-
       if (nextFollower && nextAssigneeCount > 0) {
         autoStatus = 'IN_PROGRESS';
       }
@@ -102,7 +108,14 @@ export async function PATCH(
           followerId: data.followerId === undefined ? undefined : data.followerId,
           sprintId: data.sprintId === undefined ? undefined : data.sprintId,
         },
-        select: { id: true, projectId: true, title: true, project: { select: { key: true, name: true } } },
+        // Thêm status vào select để check thay đổi bên dưới
+        select: {
+          id: true,
+          status: true,
+          projectId: true,
+          title: true,
+          project: { select: { key: true, name: true } },
+        },
       });
 
       if (data.assigneeIds) {
@@ -115,7 +128,7 @@ export async function PATCH(
           // Notification: TASK_ASSIGNED for NEW assignees
           const oldIds = before?.assignees.map(a => a.userId) || [];
           const newIds = data.assigneeIds;
-          const addedIds = newIds.filter(id => !oldIds.includes(id) && id !== me.user.id);
+          const addedIds = newIds.filter(id => !oldIds.includes(id) && id !== meId);
 
           if (addedIds.length > 0) {
             await tx.notification.createMany({
@@ -128,9 +141,9 @@ export async function PATCH(
                   taskTitle: u.title,
                   projectKey: u.project.key,
                   projectName: u.project.name,
-                  assignerName: me.user.name || me.user.email
-                }
-              }))
+                  assignerName: meName,
+                },
+              })),
             });
           }
         }
@@ -138,21 +151,19 @@ export async function PATCH(
 
       // Sync Labels
       if (data.labels) {
-        // Xóa hết link cũ
         await tx.taskTag.deleteMany({ where: { taskId } });
-        // Tạo link mới (tìm hoặc tạo tag)
         for (const labelName of data.labels) {
           const slug = labelName.toLowerCase().replace(/\s+/g, '-');
           let tag = await tx.tag.findUnique({
-            where: { projectId_slug: { projectId: t0.projectId, slug } }
+            where: { projectId_slug: { projectId: t0.projectId, slug } },
           });
           if (!tag) {
             tag = await tx.tag.create({
-              data: { projectId: t0.projectId, name: labelName, slug }
+              data: { projectId: t0.projectId, name: labelName, slug },
             });
           }
           await tx.taskTag.create({
-            data: { taskId, tagId: tag.id }
+            data: { taskId, tagId: tag.id },
           }).catch(() => null);
         }
       }
@@ -161,27 +172,25 @@ export async function PATCH(
       if (data.attachmentIds) {
         const currentAttachments = await tx.taskAttachment.findMany({
           where: { taskId },
-          select: { resourceId: true }
+          select: { resourceId: true },
         });
         const currentResIds = currentAttachments.map(x => x.resourceId);
 
-        // Delete removed
         const toDelete = currentResIds.filter(id => !data.attachmentIds!.includes(id));
         if (toDelete.length > 0) {
           await tx.taskAttachment.deleteMany({
-            where: { taskId, resourceId: { in: toDelete } }
+            where: { taskId, resourceId: { in: toDelete } },
           });
         }
 
-        // Add new
         const toAdd = data.attachmentIds.filter(id => !currentResIds.includes(id));
         if (toAdd.length > 0) {
           await tx.taskAttachment.createMany({
             data: toAdd.map(resId => ({
               taskId,
               resourceId: resId,
-              addedById: me.user.id
-            }))
+              addedById: meId,
+            })),
           });
         }
       }
@@ -192,32 +201,27 @@ export async function PATCH(
     // --- Notification: Status Changed ---
     if (updated.status && before.status && updated.status !== before.status) {
       const recipients = new Set<string>();
-      // Notify Assignees
       before.assignees.forEach(a => recipients.add(a.userId));
-      // Notify Follower
       if (before.followerId) recipients.add(before.followerId);
-      // Notify Creator
-      if (before.createdById) recipients.add(before.createdById);
-
-      // Exclude self
-      recipients.delete(me.user.id);
+      if (before.createdBy?.id) recipients.add(before.createdBy.id);
+      recipients.delete(meId);
 
       if (recipients.size > 0) {
         await prisma.notification.createMany({
           data: Array.from(recipients).map(uid => ({
             recipientId: uid,
-            type: "TASK_STATUS_CHANGED",
+            type: 'TASK_STATUS_CHANGED',
             projectId: updated.projectId,
             taskId,
             data: {
               taskTitle: updated.title,
               projectKey: updated.project.key,
               projectName: updated.project.name,
-              actorName: me.user.name || me.user.email,
+              actorName: meName,
               oldStatus: before.status,
               newStatus: updated.status,
-            }
-          }))
+            },
+          })),
         });
       }
     }
@@ -226,9 +230,9 @@ export async function PATCH(
       await logTaskActivity({
         projectId: updated.projectId,
         taskId,
-        actorId: me.user.id,
-        type: "TASK_UPDATED",
-        message: "Cập nhật nội dung task",
+        actorId: meId,
+        type: 'TASK_UPDATED',
+        message: 'Cập nhật nội dung task',
         meta: { before, after: updated },
       });
     } catch (err) {

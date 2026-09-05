@@ -1,9 +1,11 @@
 import { requireAdmin, json } from '@/lib/adminGuard';
 import { prisma } from '@/lib/prisma';
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+type Ctx = { params: Promise<{ id: string }> };
+
+export async function PATCH(req: Request, ctx: Ctx) {
   const me = await requireAdmin();
-  const { id } = params;
+  const { id } = await ctx.params;
   const { action } = await req.json(); // 'SUSPEND' | 'ACTIVATE'
 
   if (!['SUSPEND','ACTIVATE'].includes(action)) return json({ error: 'Bad action' }, 400);

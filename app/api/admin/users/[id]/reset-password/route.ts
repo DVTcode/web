@@ -3,9 +3,11 @@ import { prisma } from '@/lib/prisma';
 import crypto from 'crypto';
 import { sendMail } from '@/lib/mail';
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+type Ctx = { params: Promise<{ id: string }> };
+
+export async function POST(req: Request, ctx: Ctx) {
   const me = await requireAdmin();
-  const { id } = params;
+  const { id } = await ctx.params;
 
   // 1) Tạo token ngẫu nhiên + hạn (30 phút)
   const token = crypto.randomBytes(32).toString('hex');

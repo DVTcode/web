@@ -3,12 +3,15 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireProjectRole } from '@/lib/authz';
 
-export async function POST(_req: Request, { params }: { params: { projectId: string } }) {
-  const user = await requireProjectRole(params.projectId, 'MANAGER');
+type Ctx = { params: Promise<{ projectId: string }> };
 
-  // Tìm cột “Chưa làm” mặc định để đưa task vào Backlog/Kanban
+export async function POST(_req: Request, ctx: Ctx) {
+  const { projectId } = await ctx.params;
+  const user = await requireProjectRole(projectId, 'MANAGER');
+
+  // Tìm cột mặc định để đưa task vào Backlog/Kanban
   const todo = await prisma.boardColumn.findFirst({
-    where: { projectId: params.projectId, isDefault: true },
+    where: { projectId, isDefault: true },
     orderBy: { order: 'asc' },
   });
   if (!todo) return NextResponse.json({ error: 'Thiếu cột mặc định' }, { status: 400 });
@@ -26,7 +29,7 @@ export async function POST(_req: Request, { params }: { params: { projectId: str
 
   await prisma.task.createMany({
     data: items.map((t, idx) => ({
-      projectId: params.projectId,
+      projectId,
       columnId: todo.id,
       title: t.title,
       description: t.description,

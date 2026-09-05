@@ -2,12 +2,15 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authz";
 
+type Ctx = { params: Promise<{ inviteId: string }> };
+
 export async function POST(
   _req: Request,
-  { params }: { params: { inviteId: string } }
+  ctx: Ctx
 ) {
   const me = await requireUser();
-  const key = params.inviteId; // cho phép là id hoặc token
+  const { inviteId } = await ctx.params;
+  const key = inviteId; // cho phép là id hoặc token
 
   const inv = await prisma.projectInvite.findFirst({
     where: { OR: [{ id: key }, { token: key }] },

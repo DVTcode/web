@@ -37,6 +37,7 @@ const CreateTask = z.object({
 });
 
 // =================== GET ===================
+type Ctx = { params: Promise<{ projectId: string }> };
 export async function GET(req: Request, ctx: Ctx) {
   try {
     const { projectId } = await ctx.params;
@@ -59,7 +60,7 @@ export async function GET(req: Request, ctx: Ctx) {
           orderBy: { order: 'asc' },
         }),
         prisma.task.findMany({
-          where: { projectId, ...(status ? { status } : {}) },
+          where: { projectId, ...(status ? { status: status as any } : {}) },
           orderBy: [{ columnId: 'asc' }, { order: 'asc' }, { createdAt: 'desc' }],
           select: {
             id: true,
@@ -106,6 +107,7 @@ export async function GET(req: Request, ctx: Ctx) {
     // Map of TaskID -> Latest Report Time
     const latestReportMap = new Map<string, Date>();
     for (const r of reports) {
+      if (!r.taskId) continue;
       const existing = latestReportMap.get(r.taskId);
       if (!existing || new Date(r.createdAt) > existing) {
         latestReportMap.set(r.taskId, new Date(r.createdAt));

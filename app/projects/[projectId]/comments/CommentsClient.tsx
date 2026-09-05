@@ -274,7 +274,7 @@ function CommentItem({
   }
 
   const isOwner = currentUserId === c.author.id;
-  const canManage = currentUserRole === 'LEAD' || currentUserRole === 'MANAGER' || currentUserRole === 'OWNER';
+  const canManage = currentUserRole === 'LEAD' || currentUserRole === 'MANAGER';
   const canEdit = isOwner;
   const canDelete = isOwner || canManage;
 

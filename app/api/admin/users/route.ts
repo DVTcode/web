@@ -4,13 +4,13 @@ import { prisma } from '@/lib/prisma';
 export async function GET(req: Request) {
   await requireAdmin();
   const { searchParams } = new URL(req.url);
-  const query = (searchParams.get('query') ?? '').trim();
+  const query = (searchParams.get('query') ?? '').trim().toLowerCase();
 
   const users = await prisma.user.findMany({
     where: query ? {
       OR: [
-        { email: { contains: query, mode: 'insensitive' } },
-        { name: { contains: query, mode: 'insensitive' } },
+        { email: { contains: query } },
+        { name: { contains: query } },
       ],
     } : undefined,
     select: { id: true, name: true, email: true, status: true, globalRole: true, lastLoginAt: true },

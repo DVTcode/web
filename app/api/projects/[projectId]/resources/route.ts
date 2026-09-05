@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
-import { Prisma } from "@prisma/client";
 
 export async function GET(
     req: NextRequest,
@@ -41,12 +40,11 @@ export async function GET(
         }
 
         // 3. Fetch Project Comment Attachments (JSON)
+        // Lấy tất cả rồi filter ở app-level vì attachments là JSON không so sánh null trong SQL dễ
         const projectComments = await prisma.projectComment.findMany({
             where: {
                 projectId,
-                attachments: {
-                    not: Prisma.JsonNull,
-                },
+                // attachments có kiểu Json — bỏ filter DB, filter ở JS bên dưới
             },
             select: {
                 id: true,

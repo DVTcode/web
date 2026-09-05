@@ -52,7 +52,7 @@ export async function POST(req: Request, ctx: Ctx) {
       token,
       status: "PENDING",                                   // ✅ set rõ ràng
       expiresAt,
-      invitedById: me.id,
+      invitedById: (me as any).user?.id ?? (me as any).id,
     },
     select: {
       id: true, token: true, role: true, status: true, expiresAt: true,

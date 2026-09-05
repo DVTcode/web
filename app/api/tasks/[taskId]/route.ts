@@ -49,14 +49,14 @@ export async function GET(
 // Optional: POST để log thủ công (giúp bạn test nhanh)
 export async function POST(
   req: NextRequest,
-  { params }: { params: { taskId: string } },
+  ctx: { params: Promise<{ taskId: string }> },
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { taskId } = params;
+  const { taskId } = await ctx.params;
   const body = await req.json();
 
   const { type, message, meta } = body as {
