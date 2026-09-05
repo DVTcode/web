@@ -5,9 +5,17 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "seed": "node prisma/seed.js",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "postinstall": "prisma generate",
+    "vercel-build": "prisma generate && next build"
+  },
+  "prisma": {
+    "schema": "prisma/schema.prisma"
+  },
+  "engines": {
+    "node": ">=20.0.0"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.10.0",

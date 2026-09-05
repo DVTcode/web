@@ -1,11 +1,13 @@
 generator client {
-  provider = "prisma-client-js"
-  output   = "../app/generated/prisma"
+  provider      = "prisma-client-js"
+  output        = "../app/generated/prisma"
+  binaryTargets = ["native", "rhel-openssl-3.0.x", "debian-openssl-3.0.x", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
+  provider     = "mysql"
+  url          = env("DATABASE_URL_2")
+  relationMode = "prisma"
 }
 
 model User {
@@ -62,7 +64,7 @@ model User {
   attachmentsAdded       TaskAttachment[]
   comments               TaskComment[]
   timeEntries            TimeEntry[]
-  suspendedBy            User?                 @relation("UserSuspendedBy", fields: [suspendedById], references: [id])
+  suspendedBy            User?                 @relation("UserSuspendedBy", fields: [suspendedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
   suspendedUsers         User[]                @relation("UserSuspendedBy")
 
   @@index([globalRole])
@@ -83,7 +85,7 @@ model Account {
   scope             String?
   id_token          String?
   session_state     String?
-  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@unique([provider, providerAccountId])
   @@index([userId], map: "Account_userId_fkey")
@@ -94,7 +96,7 @@ model Session {
   sessionToken String   @unique
   userId       String
   expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@index([userId], map: "Session_userId_fkey")
 }
@@ -127,8 +129,8 @@ model OrganizationMember {
   userId         String
   role           OrgRole      @default(MEMBER)
   joinedAt       DateTime     @default(now())
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@unique([organizationId, userId])
   @@index([userId])
@@ -154,9 +156,9 @@ model Project {
   milestones          Milestone[]
   notifications       Notification[]
   NotificationSetting NotificationSetting[]
-  createdBy           User                  @relation("ProjectCreator", fields: [createdById], references: [id])
-  lead                User?                 @relation("ProjectLead", fields: [leadId], references: [id])
-  organization        Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy           User                  @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: NoAction, onUpdate: Cascade)
+  lead                User?                 @relation("ProjectLead", fields: [leadId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  organization        Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   projectActivities   ProjectActivity[]
   projectComments     ProjectComment[]
   invites             ProjectInvite[]
@@ -177,8 +179,8 @@ model ProjectMember {
   userId    String
   role      ProjectRole @default(MEMBER)
   joinedAt  DateTime    @default(now())
-  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@unique([projectId, userId])
   @@index([userId])
@@ -190,7 +192,7 @@ model BoardColumn {
   name      String
   order     Int     @default(0)
   isDefault Boolean @default(false)
-  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   tasks     Task[]
 
   @@unique([projectId, name])
@@ -219,12 +221,12 @@ model Task {
   activities       ActivityLog[]
   events           CalendarEvent[]
   Notification     Notification[]
-  column           BoardColumn?     @relation(fields: [columnId], references: [id])
-  createdBy        User             @relation("TaskCreatedBy", fields: [createdById], references: [id])
-  follower         User?            @relation("TaskFollower", fields: [followerId], references: [id])
-  project          Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  sprint           Sprint?          @relation(fields: [sprintId], references: [id])
-  updatedBy        User?            @relation("TaskUpdatedBy", fields: [updatedById], references: [id])
+  column           BoardColumn?     @relation(fields: [columnId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  createdBy        User             @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: NoAction, onUpdate: Cascade)
+  follower         User?            @relation("TaskFollower", fields: [followerId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  project          Project          @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  sprint           Sprint?          @relation(fields: [sprintId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  updatedBy        User?            @relation("TaskUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
   taskActivities   TaskActivity[]
   assignees        TaskAssignee[]
   attachments      TaskAttachment[]
@@ -233,7 +235,7 @@ model Task {
   dependenciesTo   TaskDependency[] @relation("ToTask")
   tags             TaskTag[]
   milestoneId      String?
-  milestone        Milestone?       @relation(fields: [milestoneId], references: [id])
+  milestone        Milestone?       @relation(fields: [milestoneId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   timeEntries      TimeEntry[]
 
   @@index([projectId, status, priority])
@@ -250,8 +252,8 @@ model TaskAssignee {
   taskId     String
   userId     String
   assignedAt DateTime @default(now())
-  task       Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task       Task     @relation(fields: [taskId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@unique([taskId, userId])
   @@index([userId])
@@ -262,7 +264,7 @@ model Tag {
   projectId String
   name      String
   slug      String
-  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   tasks     TaskTag[]
 
   @@unique([projectId, slug])
@@ -272,8 +274,8 @@ model Tag {
 model TaskTag {
   taskId String
   tagId  String
-  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
-  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@id([taskId, tagId])
   @@index([tagId], map: "TaskTag_tagId_fkey")
@@ -288,10 +290,10 @@ model TaskComment {
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
   attachments TaskAttachment[]
-  author      User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  parent      TaskComment?     @relation("CommentThread", fields: [parentId], references: [id])
+  author      User             @relation(fields: [authorId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  parent      TaskComment?     @relation("CommentThread", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   replies     TaskComment[]    @relation("CommentThread")
-  task        Task             @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  task        Task             @relation(fields: [taskId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@index([authorId], map: "TaskComment_authorId_fkey")
   @@index([parentId], map: "TaskComment_parentId_fkey")
@@ -308,10 +310,10 @@ model ProjectComment {
   updatedAt DateTime         @updatedAt
   mentions  CommentMention[]
   attachments Json?
-  author    User             @relation(fields: [authorId], references: [id])
-  parent    ProjectComment?  @relation("ProjectCommentReplies", fields: [parentId], references: [id])
+  author    User             @relation(fields: [authorId], references: [id], onDelete: NoAction, onUpdate: Cascade)
+  parent    ProjectComment?  @relation("ProjectCommentReplies", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   replies   ProjectComment[] @relation("ProjectCommentReplies")
-  project   Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project   Project          @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@index([projectId, createdAt])
   @@index([authorId, createdAt])
@@ -324,7 +326,7 @@ model CommentMention {
   createdAt        DateTime        @default(now())
   taskCommentId    String?
   projectCommentId String?
-  projectComment   ProjectComment? @relation(fields: [projectCommentId], references: [id], onDelete: Cascade)
+  projectComment   ProjectComment? @relation(fields: [projectCommentId], references: [id], onDelete: NoAction, onUpdate: Cascade)
 
   @@unique([projectCommentId, userId])
   @@unique([taskCommentId, userId])
@@ -340,10 +342,10 @@ model TaskAttachment {
   addedById     String
   addedAt       DateTime     @default(now())
   taskCommentId String?
-  addedBy       User         @relation(fields: [addedById], references: [id], onDelete: Cascade)
-  resource      Resource     @relation(fields: [resourceId], references: [id], onDelete: Cascade)
-  TaskComment   TaskComment? @relation(fields: [taskCommentId], references: [id])
-  task          Task         @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  addedBy       User         @relation(fields: [addedById], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  resource      Resource     @relation(fields: [resourceId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  TaskComment   TaskComment? @relation(fields: [taskCommentId], references: [id], onDelete: NoAction, onUpdate: Cascade)
+  task          Task         @relation(fields: [taskId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@index([taskId])
   @@index([addedById], map: "TaskAttachment_addedById_fkey")
@@ -356,8 +358,8 @@ model TaskDependency {
   fromTaskId String
   toTaskId   String
   type       DependencyType @default(BLOCKS)
-  from       Task           @relation("FromTask", fields: [fromTaskId], references: [id], onDelete: Cascade)
-  to         Task           @relation("ToTask", fields: [toTaskId], references: [id], onDelete: Cascade)
+  from       Task           @relation("FromTask", fields: [fromTaskId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  to         Task           @relation("ToTask", fields: [toTaskId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@unique([fromTaskId, toTaskId])
   @@index([toTaskId])
@@ -374,10 +376,10 @@ model Sprint {
   createdAt   DateTime     @default(now())
   createdById String?
   updatedAt   DateTime     @updatedAt
-  createdBy   User?        @relation("SprintCreatedBy", fields: [createdById], references: [id])
-  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy   User?        @relation("SprintCreatedBy", fields: [createdById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   milestoneId String?
-  milestone   Milestone?   @relation(fields: [milestoneId], references: [id])
+  milestone   Milestone?   @relation(fields: [milestoneId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   tasks       Task[]
 
   @@index([projectId, startDate, endDate])
@@ -396,8 +398,8 @@ model Milestone {
   progress    Int?
   title       String
   events      CalendarEvent[]
-  owner       User?           @relation(fields: [ownerId], references: [id])
-  project     Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  owner       User?           @relation(fields: [ownerId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  project     Project         @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   startDate   DateTime? // Optional start date if needed
   sprints     Sprint[]
@@ -419,9 +421,9 @@ model CalendarEvent {
   start       DateTime
   end         DateTime
   createdAt   DateTime   @default(now())
-  milestone   Milestone? @relation(fields: [milestoneId], references: [id])
-  project     Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  task        Task?      @relation(fields: [taskId], references: [id])
+  milestone   Milestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  project     Project    @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  task        Task?      @relation(fields: [taskId], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
   @@index([projectId, start, end])
   @@index([milestoneId], map: "CalendarEvent_milestoneId_fkey")
@@ -440,8 +442,8 @@ model Resource {
   size        Int?
   createdById String
   createdAt   DateTime         @default(now())
-  createdBy   User             @relation(fields: [createdById], references: [id], onDelete: Cascade)
-  project     Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy   User             @relation(fields: [createdById], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  project     Project          @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   attachments TaskAttachment[]
 
   @@index([projectId, type])
@@ -457,9 +459,9 @@ model Notification {
   data        Json?
   readAt      DateTime?
   createdAt   DateTime         @default(now())
-  project     Project?         @relation(fields: [projectId], references: [id])
-  recipient   User             @relation(fields: [recipientId], references: [id], onDelete: Cascade)
-  task        Task?            @relation(fields: [taskId], references: [id])
+  project     Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  recipient   User             @relation(fields: [recipientId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  task        Task?            @relation(fields: [taskId], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
   @@index([recipientId, readAt])
   @@index([projectId], map: "Notification_projectId_fkey")
@@ -474,8 +476,8 @@ model NotificationSetting {
   push        Boolean  @default(true)
   silentStart Int?
   silentEnd   Int?
-  project     Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project     Project? @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@unique([userId, projectId])
   @@index([projectId], map: "NotificationSetting_projectId_fkey")
@@ -491,8 +493,8 @@ model TimeEntry {
   note      String?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
-  task      Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task      Task      @relation(fields: [taskId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@index([taskId, userId, startedAt])
   @@index([userId], map: "TimeEntry_userId_fkey")
@@ -507,8 +509,8 @@ model DailyReport {
   doing     String?
   blockers  String?
   createdAt DateTime @default(now())
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@unique([projectId, authorId, date])
   @@index([projectId, date])
@@ -524,9 +526,9 @@ model ActivityLog {
   message   String?
   meta      Json?
   createdAt DateTime     @default(now())
-  actor     User         @relation(fields: [actorId], references: [id], onDelete: Cascade)
-  project   Project?     @relation(fields: [projectId], references: [id])
-  task      Task?        @relation(fields: [taskId], references: [id])
+  actor     User         @relation(fields: [actorId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  project   Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  task      Task?        @relation(fields: [taskId], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
   @@index([projectId, createdAt])
   @@index([taskId, createdAt])
@@ -540,7 +542,7 @@ model SystemSetting {
   isSecret    Boolean  @default(false)
   updatedById String?
   updatedAt   DateTime @default(now())
-  updatedBy   User?    @relation(fields: [updatedById], references: [id])
+  updatedBy   User?    @relation(fields: [updatedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
   @@index([updatedById], map: "SystemSetting_updatedById_fkey")
 }
@@ -555,8 +557,8 @@ model Integration {
   updatedById String?
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
-  createdBy   User?               @relation("IntegrationCreatedBy", fields: [createdById], references: [id])
-  updatedBy   User?               @relation("IntegrationUpdatedBy", fields: [updatedById], references: [id])
+  createdBy   User?               @relation("IntegrationCreatedBy", fields: [createdById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  updatedBy   User?               @relation("IntegrationUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
   @@index([provider, enabled])
   @@index([createdById], map: "Integration_createdById_fkey")
@@ -573,7 +575,7 @@ model AuditLog {
   userAgent  String?
   details    Json?
   createdAt  DateTime @default(now())
-  actor      User     @relation(fields: [actorId], references: [id], onDelete: Cascade)
+  actor      User     @relation(fields: [actorId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@index([entityType, entityId])
   @@index([createdAt])
@@ -591,8 +593,8 @@ model BackupSnapshot {
   startedById  String?
   finishedById String?
   notes        String?
-  finishedBy   User?           @relation("BackupFinishedBy", fields: [finishedById], references: [id])
-  startedBy    User?           @relation("BackupStartedBy", fields: [startedById], references: [id])
+  finishedBy   User?           @relation("BackupFinishedBy", fields: [finishedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  startedBy    User?           @relation("BackupStartedBy", fields: [startedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
   @@index([status, startedAt])
   @@index([finishedById], map: "BackupSnapshot_finishedById_fkey")
@@ -610,9 +612,9 @@ model ProjectInvite {
   invitedById String?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
-  invitedBy   User?        @relation("InvitedByUser", fields: [invitedById], references: [id])
-  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  recipient   User         @relation("RecipientUser", fields: [recipientId], references: [id], onDelete: Cascade)
+  invitedBy   User?        @relation("InvitedByUser", fields: [invitedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  recipient   User         @relation("RecipientUser", fields: [recipientId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@index([projectId, status])
   @@index([recipientId, status])
@@ -630,9 +632,9 @@ model OrganizationInvite {
   invitedById String?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
-  invitedBy   User?        @relation("OrgInvitedByUser", fields: [invitedById], references: [id])
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  recipient   User         @relation("OrgRecipientUser", fields: [recipientId], references: [id], onDelete: Cascade)
+  invitedBy   User?        @relation("OrgInvitedByUser", fields: [invitedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  recipient   User         @relation("OrgRecipientUser", fields: [recipientId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@index([organizationId, status])
   @@index([recipientId, status])
@@ -676,7 +678,7 @@ model ChatMessage {
   orgId          String?
   projectId      String?
   createdAt      DateTime    @default(now())
-  session        ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  session        ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@index([sessionId], map: "ChatMessage_sessionId_fkey")
 }
@@ -688,7 +690,7 @@ model ChatFeedback {
   rating    Int
   comment   String?
   createdAt DateTime    @default(now())
-  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@index([sessionId], map: "ChatFeedback_sessionId_fkey")
 }
@@ -701,8 +703,8 @@ model ProjectActivity {
   meta      Json?
   actorId   String?
   createdAt DateTime     @default(now())
-  actor     User?        @relation("UserProjectActivities", fields: [actorId], references: [id])
-  project   Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  actor     User?        @relation("UserProjectActivities", fields: [actorId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  project   Project      @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@index([projectId, createdAt(sort: Desc)])
   @@index([actorId], map: "ProjectActivity_actorId_fkey")
@@ -716,8 +718,8 @@ model TaskActivity {
   meta      Json?
   actorId   String?
   createdAt DateTime     @default(now())
-  actor     User?        @relation("UserTaskActivities", fields: [actorId], references: [id])
-  task      Task         @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  actor     User?        @relation("UserTaskActivities", fields: [actorId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  task      Task         @relation(fields: [taskId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@index([taskId, createdAt(sort: Desc)])
   @@index([actorId], map: "TaskActivity_actorId_fkey")
